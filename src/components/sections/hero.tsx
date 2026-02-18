@@ -1,91 +1,203 @@
 "use client";
 
-import React from 'react';
-import Image from 'next/image';
+import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
+import { motion, useScroll, useTransform } from "framer-motion";
 
-const HeroSection: React.FC = () => {
+const TYPEWRITER_PHRASES = [
+  "Rewrite this response to sound more confident and clear, suitable for a senior executive",
+  "Summarize this 50-page report into 5 bullet points an executive can act on",
+  "Generate 10 creative campaign ideas for a sustainable sneaker brand",
+  "Act as a McKinsey consultant. Analyze this business problem and suggest 3 strategic options",
+  "Turn these rough notes into a polished LinkedIn post with a strong hook",
+];
+
+function useTypewriter(phrases: string[], speed = 45, pause = 1800) {
+  const [displayed, setDisplayed] = useState("");
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const current = phrases[phraseIdx];
+    let timeout: ReturnType<typeof setTimeout>;
+
+    if (!deleting && charIdx < current.length) {
+      timeout = setTimeout(() => setCharIdx((c) => c + 1), speed);
+    } else if (!deleting && charIdx === current.length) {
+      timeout = setTimeout(() => setDeleting(true), pause);
+    } else if (deleting && charIdx > 0) {
+      timeout = setTimeout(() => setCharIdx((c) => c - 1), speed / 2.5);
+    } else {
+      setDeleting(false);
+      setPhraseIdx((p) => (p + 1) % phrases.length);
+    }
+
+    return () => clearTimeout(timeout);
+  }, [charIdx, deleting, phraseIdx, phrases, speed, pause]);
+
+  useEffect(() => {
+    setDisplayed(phrases[phraseIdx].slice(0, charIdx));
+  }, [charIdx, phraseIdx, phrases]);
+
+  return displayed;
+}
+
+function useCountdown(targetMs: number) {
+  const [remaining, setRemaining] = useState(targetMs);
+  useEffect(() => {
+    const iv = setInterval(() => setRemaining((r) => Math.max(0, r - 1000)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const d = Math.floor(remaining / 86400000);
+  const h = Math.floor((remaining % 86400000) / 3600000);
+  const m = Math.floor((remaining % 3600000) / 60000);
+  const s = Math.floor((remaining % 60000) / 1000);
+  return { d, h, m, s };
+}
+
+const Pad = (n: number) => String(n).padStart(2, "0");
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: (i = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.65, ease: [0.25, 0.46, 0.45, 0.94], delay: i * 0.12 },
+  }),
+};
+
+export default function HeroSection() {
+  const text = useTypewriter(TYPEWRITER_PHRASES);
+  const { d, h, m, s } = useCountdown(143 * 3600000 + 14 * 60000 + 3000);
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const videoY = useTransform(scrollYProgress, [0, 1], [0, 80]);
+  const bgY = useTransform(scrollYProgress, [0, 1], [0, -40]);
+
   return (
-    <header className="relative w-full overflow-hidden bg-[#0a0a0a] pt-32 pb-20 md:pt-40 md:pb-32">
-      {/* Background Grid & Spotlights */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div 
-          className="absolute inset-0 opacity-10" 
-          style={{ 
+    <header ref={ref} className="relative w-full overflow-hidden bg-[#0a0a0a] pt-32 pb-20 md:pt-40 md:pb-32">
+      {/* Background Grid parallax */}
+      <motion.div style={{ y: bgY }} className="absolute inset-0 z-0 pointer-events-none">
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
             backgroundImage: `url('https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/svgs/I5BmrodulLElK3MtIcR7Z5YD8bI-3.svg')`,
-            backgroundSize: '1324px 612px',
-            backgroundPosition: 'center top'
-          }} 
+            backgroundSize: "1324px 612px",
+            backgroundPosition: "center top",
+          }}
         />
-        
-        {/* Glow Effects (Spotlights) */}
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-[#ff7a001a] blur-[120px]" />
         <div className="absolute top-[20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#ffffff05] blur-[100px]" />
         <div className="absolute bottom-[-20%] left-[20%] w-[70%] h-[50%] bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent z-10" />
-      </div>
+      </motion.div>
 
       <div className="container relative z-10 flex flex-col items-center">
-        {/* Countdown Timer Banner */}
-        <div className="mb-8 flex items-center justify-center">
-          <div className="flex items-center gap-0 border border-white/10 rounded-lg overflow-hidden glass-panel">
+        {/* Countdown */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={0}
+          className="mb-8 flex items-center justify-center"
+        >
+          <div className="flex items-center gap-0 border border-white/10 rounded-lg overflow-hidden">
             <div className="bg-[#1a1a1a] px-4 py-2 text-[14px] font-medium text-white/80 whitespace-nowrap">
               Limited time offer ends in
             </div>
-            <div className="bg-[#ffffff] px-4 py-2 text-[14px] font-bold text-black font-mono">
-              143 : 14 : 03 : 13
+            <div className="bg-white px-4 py-2 text-[14px] font-bold text-black font-mono tabular-nums">
+              {Pad(d)} : {Pad(h)} : {Pad(m)} : {Pad(s)}
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Main Headline */}
-        <div className="max-w-[1000px] text-center mb-10">
-          <h1 className="text-[48px] md:text-[80px] font-extrabold leading-[1.1] tracking-tight text-white">
-            Master Prompt Engineering in 6 Weeks & <span className="orange-gradient-text italic">Supercharge your career.</span>
+        {/* Headline */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={1}
+          className="max-w-[1000px] text-center mb-10"
+        >
+          <h1 className="text-[44px] md:text-[80px] font-extrabold leading-[1.08] tracking-tight text-white">
+            Master Prompt Engineering in 6 Weeks &{" "}
+            <span className="orange-gradient-text italic">Supercharge your career.</span>
           </h1>
-        </div>
+        </motion.div>
 
-        {/* Typewriter Animation Prompt Box */}
-        <div className="w-full max-w-[680px] mb-12 animate-in fade-in slide-in-from-bottom-5 duration-1000">
+        {/* Typewriter prompt box */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={2}
+          className="w-full max-w-[680px] mb-12"
+        >
           <div className="glass-panel border border-white/10 rounded-[16px] p-6 bg-[#1a1a1a]/40 shadow-2xl">
-            <div className="text-white/90 text-lg md:text-xl font-medium mb-8 min-h-[56px] flex items-center">
-              <span>Rewrite this response to sound more confident and clear, suitable for a senior executive</span>
-              <span className="inline-block w-[3px] h-[24px] bg-primary ml-2 animate-pulse" />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t border-white/5">
-              <div className="flex items-center gap-4">
-                <button className="flex items-center gap-2 text-white/40 hover:text-white/60 transition-colors text-sm font-medium">
-                  <span className="text-xl">+</span>
-                  <div className="flex items-center gap-1.5">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                    Tools
-                  </div>
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer text-white/40">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
-                </div>
-                <div className="p-2 rounded-full bg-white/5 text-white/60">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"></path><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"></path><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M20 12h2"></path><path d="M2 12h2"></path></svg>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Primary CTA and Students */}
-        <div className="flex flex-col md:flex-row items-center gap-8 mb-20">
-          <a href="#pricing" className="btn-primary group h-[60px] px-8 text-lg flex items-center justify-between min-w-[260px]">
-            <span>Enroll now for $499</span>
-            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center ml-4 group-hover:scale-110 transition-transform">
-              <Image 
-                src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/svgs/U0c022TYy3iR6YjbwbyxOaDRsk-2.svg" 
-                width={16} 
-                height={14} 
-                alt="Arrow" 
+            <div className="text-white/90 text-lg md:text-xl font-medium mb-8 min-h-[56px] flex items-start">
+              <span>{text}</span>
+              <motion.span
+                animate={{ opacity: [1, 0] }}
+                transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse" }}
+                className="inline-block w-[3px] h-[24px] bg-primary ml-1 mt-1 flex-shrink-0"
               />
             </div>
-          </a>
+            <div className="flex items-center justify-between pt-4 border-t border-white/5">
+              <button className="flex items-center gap-2 text-white/40 hover:text-white/60 transition-colors text-sm font-medium">
+                <span className="text-xl">+</span>
+                <div className="flex items-center gap-1.5">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                  Tools
+                </div>
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer text-white/40">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="22" />
+                  </svg>
+                </div>
+                <div className="p-2 rounded-full bg-white/5 text-white/60">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+                    <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                    <path d="M12 2v2M12 20v2M20 12h2M2 12h2" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* CTA + Avatars */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={3}
+          className="flex flex-col md:flex-row items-center gap-8 mb-20"
+        >
+          <motion.a
+            href="#pricing"
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            className="btn-primary group h-[60px] px-8 text-lg flex items-center justify-between min-w-[260px]"
+          >
+            <span>Enroll now for $499</span>
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center ml-4 group-hover:scale-110 transition-transform">
+              <Image
+                src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/svgs/U0c022TYy3iR6YjbwbyxOaDRsk-2.svg"
+                width={16}
+                height={14}
+                alt="Arrow"
+              />
+            </div>
+          </motion.a>
 
           <div className="flex items-center gap-12 relative">
             <div className="flex -space-x-3">
@@ -93,55 +205,68 @@ const HeroSection: React.FC = () => {
                 "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/images/GvIIYiCvs1fSYrsqT9kkYqRv4Y-1.jpg",
                 "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/images/LS4ISV3lMw5erPxQJs6QzAYUmU-2.jpg",
                 "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/images/km3kZvwQj1ex1UnSfYsIR0bRQ-3.png",
-                "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/images/fVdbJJ2MWbfO3uSvWyvr0pmMb0M-4.png"
+                "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/images/fVdbJJ2MWbfO3uSvWyvr0pmMb0M-4.png",
               ].map((src, i) => (
-                <div key={i} className="w-10 h-10 rounded-full border-2 border-[#1a1a1a] overflow-hidden relative">
-                  <Image src={src} fill className="object-cover" alt="Student Headshot" />
-                </div>
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 + i * 0.08 }}
+                  className="w-10 h-10 rounded-full border-2 border-[#1a1a1a] overflow-hidden relative"
+                >
+                  <Image src={src} fill className="object-cover" alt="Student" />
+                </motion.div>
               ))}
             </div>
-            
             <div className="relative">
               <p className="text-[#a1a1a1] uppercase text-[12px] font-bold tracking-widest leading-tight w-[200px]">
                 2k+ professionals are already ahead of you.
               </p>
-              {/* Decorative Hand-drawn Arrow */}
               <div className="absolute top-1/2 left-[-60px] transform -translate-y-1/2 rotate-[-10deg] hidden md:block opacity-40">
-                <svg width="45" height="32" viewBox="0 0 45 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 31C5 25 10 10 44 1" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M38 6L44 1L37 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg width="45" height="32" viewBox="0 0 45 32" fill="none">
+                  <path d="M1 31C5 25 10 10 44 1" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M38 6L44 1L37 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Large Video Player Placeholder */}
-        <div className="w-full max-w-[1140px] relative mt-10">
-          <div className="relative aspect-video rounded-[24px] overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(255,122,0,0.15)] group transition-all duration-700 hover:scale-[1.01]">
-            <Image 
-              src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/images/GGNg8KoV9Iwu1Z89UqqLzdQWx0-5.png" 
-              fill 
-              className="object-cover opacity-60 mix-blend-overlay" 
+        {/* Video */}
+        <motion.div
+          style={{ y: videoY }}
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={4}
+          className="w-full max-w-[1140px] relative mt-10"
+        >
+          <motion.div
+            animate={{ boxShadow: ["0 0 60px rgba(255,122,0,0.1)", "0 0 100px rgba(255,122,0,0.25)", "0 0 60px rgba(255,122,0,0.1)"] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            className="relative aspect-video rounded-[24px] overflow-hidden border border-white/10 group"
+          >
+            <Image
+              src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/0fea2819-e0b6-4ab2-b4ab-ab4c64535352-oma-mindly-framer-website/assets/images/GGNg8KoV9Iwu1Z89UqqLzdQWx0-5.png"
+              fill
+              className="object-cover opacity-60 mix-blend-overlay transition-transform duration-700 group-hover:scale-[1.02]"
               alt="Video Background"
             />
-            {/* The actual placeholder content from screenshots has a person and a play button */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-            
-            {/* Static UI for placeholder person (Fallback to generic placeholder if not detected) */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-[0_0_30px_rgba(255,122,0,0.4)]">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-              </div>
+              <motion.div
+                whileHover={{ scale: 1.12 }}
+                whileTap={{ scale: 0.95 }}
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                className="w-20 h-20 rounded-full bg-primary flex items-center justify-center cursor-pointer shadow-[0_0_30px_rgba(255,122,0,0.4)]"
+              >
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+              </motion.div>
             </div>
-
-            {/* Reflections / Spotlight on Video */}
-            <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-[#ff7a0005] to-transparent" />
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
     </header>
   );
-};
-
-export default HeroSection;
+}
